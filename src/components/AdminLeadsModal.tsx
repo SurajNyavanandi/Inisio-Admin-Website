@@ -22,20 +22,23 @@ export const AdminLeadsModal: React.FC<AdminLeadsModalProps> = ({ isOpen, onClos
   const [editNotes, setEditNotes] = useState('');
   const [editStatus, setEditStatus] = useState<InquiryStatus>('New');
   const [editStaff, setEditStaff] = useState('');
+  const [staffUsers, setStaffUsers] = useState<{ id: string; name: string; role: string }[]>([]);
 
   const fetchInquiries = async () => {
     setLoading(true);
     try {
       const res = await axios.get('/api/admin/contact', getAuthHeaders());
-      setInquiries(res.data);
-      if (res.data.length > 0 && !selectedInquiry) {
-        setSelectedInquiry(res.data[0]);
-        setEditNotes(res.data[0].internalNotes || '');
-        setEditStatus(res.data[0].status);
-        setEditStaff(res.data[0].assignedStaff || '');
+      const rawInquiries = Array.isArray(res.data) ? res.data : [];
+      setInquiries(rawInquiries);
+      if (rawInquiries.length > 0 && !selectedInquiry) {
+        setSelectedInquiry(rawInquiries[0]);
+        setEditNotes(rawInquiries[0].internalNotes || '');
+        setEditStatus(rawInquiries[0].status);
+        setEditStaff(rawInquiries[0].assignedStaff || '');
       }
     } catch (err: any) {
       showNotification(err.response?.data?.error || 'Failed to fetch inquiries', 'error');
+      setInquiries([]);
     } finally {
       setLoading(false);
     }
@@ -44,6 +47,10 @@ export const AdminLeadsModal: React.FC<AdminLeadsModalProps> = ({ isOpen, onClos
   useEffect(() => {
     if (isOpen) {
       fetchInquiries();
+      axios
+        .get('/api/users', getAuthHeaders())
+        .then((res) => setStaffUsers(res.data))
+        .catch(() => {});
     }
   }, [isOpen]);
 
@@ -119,7 +126,8 @@ export const AdminLeadsModal: React.FC<AdminLeadsModalProps> = ({ isOpen, onClos
     }
   };
 
-  const filteredInquiries = inquiries.filter((inq) => {
+  const safeInquiries = Array.isArray(inquiries) ? inquiries : [];
+  const filteredInquiries = safeInquiries.filter((inq) => {
     if (!showArchived && inq.isArchived) return false;
     if (selectedStatus !== 'all' && inq.status.toLowerCase() !== selectedStatus.toLowerCase()) return false;
     if (search.trim()) {
@@ -348,10 +356,14 @@ export const AdminLeadsModal: React.FC<AdminLeadsModalProps> = ({ isOpen, onClos
                         onChange={(e) => setEditStaff(e.target.value)}
                         className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
-                        <option value="Vikram Malhotra">Vikram Malhotra (Prosync)</option>
-                        <option value="Ananya Iyer">Ananya Iyer (DPR)</option>
-                        <option value="CA Rajesh Mehta">CA Rajesh Mehta (CA)</option>
-                        <option value="Aarav Sharma">Aarav Sharma (Admin)</option>
+                        <option value="Unassigned">Unassigned</option>
+                        {staffUsers
+                          .filter((u) => u.role !== 'user')
+                          .map((u) => (
+                            <option key={u.id} value={u.name}>
+                              {u.name} ({u.role.toUpperCase()})
+                            </option>
+                          ))}
                       </select>
                     </div>
                   </div>

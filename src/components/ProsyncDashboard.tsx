@@ -9,18 +9,25 @@ export const ProsyncDashboard: React.FC = () => {
   const [consultations, setConsultations] = useState<ConsultationRecord[]>([]);
   const [syndicationLeads, setSyndicationLeads] = useState<LeadRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const [cRes, lRes] = await Promise.all([
         axios.get('/api/consultations', getAuthHeaders()),
         axios.get('/api/leads', getAuthHeaders()),
       ]);
-      setConsultations(cRes.data);
-      setSyndicationLeads(lRes.data.filter((l: LeadRecord) => l.pipelineStatus === 'Syndication' || l.pipelineStatus === 'Sanctioned'));
+      setConsultations(Array.isArray(cRes.data) ? cRes.data : []);
+      const rawLeads = Array.isArray(lRes.data) ? lRes.data : [];
+      setSyndicationLeads(rawLeads.filter((l: LeadRecord) => l.pipelineStatus === 'Syndication' || l.pipelineStatus === 'Sanctioned'));
     } catch (err: any) {
-      showNotification(err.response?.data?.error || 'Failed to fetch Prosync syndication data', 'error');
+      const msg = err.response?.data?.error || 'Failed to fetch Prosync syndication data';
+      setError(msg);
+      setConsultations([]);
+      setSyndicationLeads([]);
+      showNotification(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -73,7 +80,21 @@ export const ProsyncDashboard: React.FC = () => {
           </div>
 
           <div className="space-y-3 overflow-y-auto max-h-[500px]">
-            {consultations.map((cns) => (
+            {loading ? (
+              <div className="py-12 flex flex-col items-center justify-center gap-2 text-xs text-slate-500">
+                <RefreshCw className="w-4 h-4 text-blue-600 animate-spin" />
+                <span>Loading consultation queue...</span>
+              </div>
+            ) : error ? (
+              <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700">
+                {error}
+              </div>
+            ) : consultations.length === 0 ? (
+              <div className="py-12 text-center text-xs text-slate-400">
+                No client advisory consultations currently booked.
+              </div>
+            ) : (
+              consultations.map((cns) => (
               <div key={cns.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-900 text-sm">{cns.clientName}</span>
@@ -128,7 +149,7 @@ export const ProsyncDashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
-            ))}
+            )))}
           </div>
         </div>
 
@@ -142,7 +163,17 @@ export const ProsyncDashboard: React.FC = () => {
           </div>
 
           <div className="space-y-3 overflow-y-auto max-h-[500px]">
-            {syndicationLeads.map((ld) => (
+            {loading ? (
+              <div className="py-12 flex flex-col items-center justify-center gap-2 text-xs text-slate-500">
+                <RefreshCw className="w-4 h-4 text-emerald-600 animate-spin" />
+                <span>Loading syndication deals...</span>
+              </div>
+            ) : syndicationLeads.length === 0 ? (
+              <div className="py-12 text-center text-xs text-slate-400">
+                No enterprise pipeline deals currently in active syndication or sanctioned status.
+              </div>
+            ) : (
+              syndicationLeads.map((ld) => (
               <div key={ld.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-900 text-sm">{ld.companyName}</span>
@@ -177,7 +208,7 @@ export const ProsyncDashboard: React.FC = () => {
                   <span className="font-mono text-emerald-700 font-semibold">Bankability: {ld.bankabilityScore}/100</span>
                 </div>
               </div>
-            ))}
+            )))}
           </div>
         </div>
       </div>

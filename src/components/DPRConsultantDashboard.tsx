@@ -24,13 +24,15 @@ export const DPRConsultantDashboard: React.FC = () => {
     setLoading(true);
     try {
       const res = await axios.get('/api/leads', getAuthHeaders());
-      setLeads(res.data);
-      if (res.data.length > 0 && !selectedLead) {
-        setSelectedLead(res.data[0]);
-        setDprNotes(res.data[0].notes || '');
+      const rawLeads = Array.isArray(res.data) ? res.data : [];
+      setLeads(rawLeads);
+      if (rawLeads.length > 0 && !selectedLead) {
+        setSelectedLead(rawLeads[0]);
+        setDprNotes(rawLeads[0].notes || '');
       }
     } catch (err: any) {
       showNotification(err.response?.data?.error || 'Failed to fetch DPR leads', 'error');
+      setLeads([]);
     } finally {
       setLoading(false);
     }
@@ -70,7 +72,8 @@ export const DPRConsultantDashboard: React.FC = () => {
     }
   };
 
-  const dprLeads = leads.filter(
+  const safeLeads = Array.isArray(leads) ? leads : [];
+  const dprLeads = safeLeads.filter(
     (l) => l.pipelineStatus === 'DPR Drafting' || l.pipelineStatus === 'Feasibility Review' || l.assignedDPR === 'Ananya Iyer'
   );
 
@@ -104,7 +107,17 @@ export const DPRConsultantDashboard: React.FC = () => {
           </div>
 
           <div className="divide-y divide-slate-100 overflow-y-auto max-h-[600px]">
-            {dprLeads.map((ld) => {
+            {loading ? (
+              <div className="p-8 text-center text-xs text-slate-500 flex flex-col items-center justify-center gap-2">
+                <RefreshCw className="w-4 h-4 text-purple-600 animate-spin" />
+                <span>Loading DPR pipeline projects...</span>
+              </div>
+            ) : dprLeads.length === 0 ? (
+              <div className="p-8 text-center text-xs text-slate-400">
+                No enterprise projects currently requiring DPR drafting or technical feasibility review.
+              </div>
+            ) : (
+              dprLeads.map((ld) => {
               const isSelected = selectedLead?.id === ld.id;
               return (
                 <div
@@ -127,7 +140,7 @@ export const DPRConsultantDashboard: React.FC = () => {
                   </div>
                 </div>
               );
-            })}
+            }))}
           </div>
         </div>
 

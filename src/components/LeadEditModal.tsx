@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Save, Building, DollarSign, Users, Award, FileText } from 'lucide-react';
-import { LeadRecord, PipelineStatus, FeasibilityRating } from '../types';
+import { LeadRecord, PipelineStatus, FeasibilityRating, UserProfile } from '../types';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 
@@ -18,12 +18,20 @@ export const LeadEditModal: React.FC<LeadEditModalProps> = ({ lead, onClose, onL
   const [requiredBankDebt, setRequiredBankDebt] = useState(lead?.requiredBankDebt || 0);
   const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus>(lead?.pipelineStatus || 'Inquiry');
   const [feasibilityRating, setFeasibilityRating] = useState<FeasibilityRating>(lead?.feasibilityRating || 'Moderate');
-  const [bankabilityScore, setBankabilityScore] = useState(lead?.bankabilityScore || 75);
-  const [assignedDPR, setAssignedDPR] = useState(lead?.assignedDPR || 'Ananya Iyer');
-  const [assignedProsync, setAssignedProsync] = useState(lead?.assignedProsync || 'Vikram Malhotra');
-  const [assignedCA, setAssignedCA] = useState(lead?.assignedCA || 'CA Rajesh Mehta');
+  const [bankabilityScore, setBankabilityScore] = useState(lead?.bankabilityScore ?? 0);
+  const [assignedDPR, setAssignedDPR] = useState(lead?.assignedDPR || 'Unassigned');
+  const [assignedProsync, setAssignedProsync] = useState(lead?.assignedProsync || 'Unassigned');
+  const [assignedCA, setAssignedCA] = useState(lead?.assignedCA || 'Unassigned');
   const [notes, setNotes] = useState(lead?.notes || '');
   const [saving, setSaving] = useState(false);
+  const [staffUsers, setStaffUsers] = useState<UserProfile[]>([]);
+
+  useEffect(() => {
+    axios
+      .get('/api/users', getAuthHeaders())
+      .then((res) => setStaffUsers(res.data))
+      .catch(() => {});
+  }, []);
 
   if (!lead) return null;
 
@@ -194,9 +202,14 @@ export const LeadEditModal: React.FC<LeadEditModalProps> = ({ lead, onClose, onL
                   onChange={(e) => setAssignedDPR(e.target.value)}
                   className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg text-slate-900"
                 >
-                  <option value="Ananya Iyer">Ananya Iyer (Senior Consultant)</option>
-                  <option value="Ramesh Kumar">Ramesh Kumar (Engineering Desk)</option>
                   <option value="Unassigned">Unassigned</option>
+                  {staffUsers
+                    .filter((u) => u.role === 'dpr' || u.role === 'admin' || u.role === 'superadmin')
+                    .map((u) => (
+                      <option key={u.id} value={u.name}>
+                        {u.name} ({u.role.toUpperCase()})
+                      </option>
+                    ))}
                 </select>
               </div>
 
@@ -207,9 +220,14 @@ export const LeadEditModal: React.FC<LeadEditModalProps> = ({ lead, onClose, onL
                   onChange={(e) => setAssignedProsync(e.target.value)}
                   className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg text-slate-900"
                 >
-                  <option value="Vikram Malhotra">Vikram Malhotra (Lead Officer)</option>
-                  <option value="Priya Sharma">Priya Sharma (Syndication Desk)</option>
                   <option value="Unassigned">Unassigned</option>
+                  {staffUsers
+                    .filter((u) => u.role === 'prosync' || u.role === 'admin' || u.role === 'superadmin')
+                    .map((u) => (
+                      <option key={u.id} value={u.name}>
+                        {u.name} ({u.role.toUpperCase()})
+                      </option>
+                    ))}
                 </select>
               </div>
 
@@ -220,9 +238,14 @@ export const LeadEditModal: React.FC<LeadEditModalProps> = ({ lead, onClose, onL
                   onChange={(e) => setAssignedCA(e.target.value)}
                   className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg text-slate-900"
                 >
-                  <option value="CA Rajesh Mehta">CA Rajesh Mehta (CMA Auditor)</option>
-                  <option value="CA Sunita Kapoor">CA Sunita Kapoor (Financial Desk)</option>
                   <option value="Unassigned">Unassigned</option>
+                  {staffUsers
+                    .filter((u) => u.role === 'ca' || u.role === 'admin' || u.role === 'superadmin')
+                    .map((u) => (
+                      <option key={u.id} value={u.name}>
+                        {u.name} ({u.role.toUpperCase()})
+                      </option>
+                    ))}
                 </select>
               </div>
             </div>

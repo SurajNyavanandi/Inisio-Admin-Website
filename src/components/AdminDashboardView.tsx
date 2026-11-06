@@ -57,10 +57,12 @@ export const AdminDashboardView: React.FC = () => {
         axios.get('/api/leads', getAuthHeaders()),
         axios.get('/api/users', getAuthHeaders()).catch(() => ({ data: [] })),
       ]);
-      setLeads(leadsRes.data);
-      setUsersList(usersRes.data);
+      setLeads(Array.isArray(leadsRes.data) ? leadsRes.data : []);
+      setUsersList(Array.isArray(usersRes.data) ? usersRes.data : []);
     } catch (err: any) {
       showNotification(err.response?.data?.error || 'Failed to fetch pipeline leads', 'error');
+      setLeads([]);
+      setUsersList([]);
     } finally {
       setLoading(false);
     }
@@ -71,7 +73,8 @@ export const AdminDashboardView: React.FC = () => {
   }, []);
 
   // Filtered leads computation
-  const filteredLeads = leads.filter((ld) => {
+  const safeLeads = Array.isArray(leads) ? leads : [];
+  const filteredLeads = safeLeads.filter((ld) => {
     if (statusFilter !== 'all' && ld.pipelineStatus !== statusFilter) return false;
     if (feasibilityFilter !== 'all' && ld.feasibilityRating !== feasibilityFilter) return false;
     if (search.trim()) {
@@ -165,24 +168,18 @@ export const AdminDashboardView: React.FC = () => {
   };
 
   // View User Profile trigger
-  const handleOpenUserProfile = (email: string) => {
+  const handleOpenUserProfile = async (email: string) => {
     const found = usersList.find((u) => u.email.toLowerCase() === email.toLowerCase());
     if (found) {
       setSelectedUserForDetail(found);
-    } else {
-      // Create temporary view profile object
-      setSelectedUserForDetail({
-        id: `usr-gen-${Date.now()}`,
-        name: email.split('@')[0],
-        email: email,
-        role: 'user',
-        status: 'active',
-        emailVerified: true,
-        kycStatus: 'Verified',
-        lastLogin: '2026-11-05 20:00',
-        createdAt: '2025-02-01',
-        loginAuditLogs: [{ timestamp: '2026-11-05 20:00', ip: '103.21.244.12', status: 'Success' }],
-      });
+      return;
+    }
+
+    try {
+      const res = await axios.get(`/api/users/profile/${encodeURIComponent(email)}`, getAuthHeaders());
+      setSelectedUserForDetail(res.data);
+    } catch {
+      showNotification(`No administrative or registered user profile found for '${email}'`, 'warning');
     }
   };
 
@@ -399,7 +396,16 @@ export const AdminDashboardView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredLeads.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="p-8 text-center text-slate-500">
+                    <div className="flex items-center justify-center gap-2">
+                      <RefreshCw className="w-4 h-4 text-blue-600 animate-spin" />
+                      <span>Loading pipeline lead records...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredLeads.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="p-8 text-center text-slate-400">
                     No lead records match your search or filter parameters.

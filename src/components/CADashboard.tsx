@@ -8,23 +8,28 @@ export const CADashboard: React.FC = () => {
   const { checkSuperAdminRestriction, getAuthHeaders, showNotification } = useAuth();
   const [assessments, setAssessments] = useState<AssessmentRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [selectedAudit, setSelectedAudit] = useState<AssessmentRecord | null>(null);
 
-  // Form edit states
+  // Form edit states (initialized dynamically from selected audit record)
   const [cmaAuditStatus, setCmaAuditStatus] = useState<'Passed' | 'Under Review' | 'Observations Flagged'>('Under Review');
   const [bankabilityStatus, setBankabilityStatus] = useState<'High Bankability' | 'Moderate Feasibility' | 'Critical Risk'>('High Bankability');
-  const [dscr, setDscr] = useState<number>(1.75);
-  const [debtEquityRatio, setDebtEquityRatio] = useState<string>('2.00 : 1');
-  const [assignedCA, setAssignedCA] = useState<string>('CA Rajesh Mehta');
+  const [dscr, setDscr] = useState<number>(0);
+  const [debtEquityRatio, setDebtEquityRatio] = useState<string>('');
+  const [assignedCA, setAssignedCA] = useState<string>('');
   const [saving, setSaving] = useState(false);
 
   const fetchAssessments = async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await axios.get('/api/assessments/all', getAuthHeaders());
-      setAssessments(res.data);
+      setAssessments(Array.isArray(res.data) ? res.data : []);
     } catch (err: any) {
-      showNotification(err.response?.data?.error || 'Failed to load CA assessment records', 'error');
+      const msg = err.response?.data?.error || 'Failed to load CA assessment records';
+      setError(msg);
+      setAssessments([]);
+      showNotification(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -147,7 +152,37 @@ export const CADashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {assessments.map((asm) => (
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="p-8 text-center text-slate-500">
+                    <div className="flex items-center justify-center gap-2">
+                      <RefreshCw className="w-4 h-4 text-blue-600 animate-spin" />
+                      <span>Loading underwriting assessments from audit registry...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={8} className="p-8 text-center text-rose-600">
+                    <div className="space-y-2">
+                      <p>{error}</p>
+                      <button
+                        onClick={fetchAssessments}
+                        className="px-3 py-1 bg-rose-50 border border-rose-300 text-rose-800 rounded text-xs font-semibold hover:bg-rose-100"
+                      >
+                        Retry Audit Fetch
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : assessments.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="p-8 text-center text-slate-400">
+                    No active CMA assessment records currently pending in underwriting queue.
+                  </td>
+                </tr>
+              ) : (
+                assessments.map((asm) => (
                 <tr key={asm.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="p-3 font-semibold text-slate-900">
                     <div>{asm.companyName}</div>
@@ -192,7 +227,7 @@ export const CADashboard: React.FC = () => {
                     </button>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>
