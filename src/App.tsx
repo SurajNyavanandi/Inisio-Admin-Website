@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { AdminDashboardView } from './components/AdminDashboardView';
 import { InternalPortalLogin } from './components/InternalPortalLogin';
-import { CADashboard } from './components/CADashboard';
-import { DPRConsultantDashboard } from './components/DPRConsultantDashboard';
-import { ProsyncDashboard } from './components/ProsyncDashboard';
 import { ForbiddenPage } from './components/ForbiddenPage';
 import { Building2, LogOut, ShieldCheck, AlertCircle, X } from 'lucide-react';
+
+const AdminDashboardView = lazy(() => import('./components/AdminDashboardView').then(m => ({ default: m.AdminDashboardView })));
+const CADashboard = lazy(() => import('./components/CADashboard').then(m => ({ default: m.CADashboard })));
+const DPRConsultantDashboard = lazy(() => import('./components/DPRConsultantDashboard').then(m => ({ default: m.DPRConsultantDashboard })));
+const ProsyncDashboard = lazy(() => import('./components/ProsyncDashboard').then(m => ({ default: m.ProsyncDashboard })));
 
 type NavigationTab = 'admin' | 'ca' | 'dpr' | 'prosync' | 'login';
 
@@ -51,18 +52,30 @@ const AppContent: React.FC = () => {
       );
     }
 
-    switch (activeTab) {
-      case 'admin':
-        return <AdminDashboardView />;
-      case 'ca':
-        return <CADashboard />;
-      case 'dpr':
-        return <DPRConsultantDashboard />;
-      case 'prosync':
-        return <ProsyncDashboard />;
-      default:
-        return <AdminDashboardView />;
-    }
+    const view = (() => {
+      switch (activeTab) {
+        case 'admin':
+          return <AdminDashboardView />;
+        case 'ca':
+          return <CADashboard />;
+        case 'dpr':
+          return <DPRConsultantDashboard />;
+        case 'prosync':
+          return <ProsyncDashboard />;
+        default:
+          return <AdminDashboardView />;
+      }
+    })();
+
+    return (
+      <Suspense fallback={
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      }>
+        {view}
+      </Suspense>
+    );
   };
 
   return (

@@ -36,7 +36,28 @@ export const CADashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchAssessments();
+    let isMounted = true;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await axios.get('/api/assessments/all', getAuthHeaders());
+        if (isMounted) setAssessments(Array.isArray(res.data) ? res.data : []);
+      } catch (err: any) {
+        if (isMounted) {
+          const msg = err.response?.data?.error || 'Failed to load CA assessment records';
+          setError(msg);
+          setAssessments([]);
+          showNotification(msg, 'error');
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleOpenAuditModal = (asm: AssessmentRecord) => {

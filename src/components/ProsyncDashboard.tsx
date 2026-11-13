@@ -34,7 +34,36 @@ export const ProsyncDashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchData();
+    let isMounted = true;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [cRes, lRes] = await Promise.all([
+          axios.get('/api/consultations', getAuthHeaders()),
+          axios.get('/api/leads', getAuthHeaders()),
+        ]);
+        if (isMounted) {
+          setConsultations(Array.isArray(cRes.data) ? cRes.data : []);
+          const rawLeads = Array.isArray(lRes.data) ? lRes.data : [];
+          setSyndicationLeads(rawLeads.filter((l: LeadRecord) => l.pipelineStatus === 'Syndication' || l.pipelineStatus === 'Sanctioned'));
+        }
+      } catch (err: any) {
+        if (isMounted) {
+          const msg = err.response?.data?.error || 'Failed to fetch Prosync syndication data';
+          setError(msg);
+          setConsultations([]);
+          setSyndicationLeads([]);
+          showNotification(msg, 'error');
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleUpdateConsultationStatus = async (id: string, status: 'Requested' | 'Scheduled' | 'Completed' | 'Cancelled') => {

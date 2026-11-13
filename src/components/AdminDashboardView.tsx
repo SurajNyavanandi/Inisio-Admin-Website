@@ -69,7 +69,32 @@ export const AdminDashboardView: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchLeads();
+    let isMounted = true;
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const [leadsRes, usersRes] = await Promise.all([
+          axios.get('/api/leads', getAuthHeaders()),
+          axios.get('/api/users', getAuthHeaders()).catch(() => ({ data: [] })),
+        ]);
+        if (isMounted) {
+          setLeads(Array.isArray(leadsRes.data) ? leadsRes.data : []);
+          setUsersList(Array.isArray(usersRes.data) ? usersRes.data : []);
+        }
+      } catch (err: any) {
+        if (isMounted) {
+          showNotification(err.response?.data?.error || 'Failed to fetch pipeline leads', 'error');
+          setLeads([]);
+          setUsersList([]);
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    loadData();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Filtered leads computation

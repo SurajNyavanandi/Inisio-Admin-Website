@@ -39,7 +39,32 @@ export const DPRConsultantDashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchLeads();
+    let isMounted = true;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const res = await axios.get('/api/leads', getAuthHeaders());
+        const rawLeads = Array.isArray(res.data) ? res.data : [];
+        if (isMounted) {
+          setLeads(rawLeads);
+          if (rawLeads.length > 0 && !selectedLead) {
+            setSelectedLead(rawLeads[0]);
+            setDprNotes(rawLeads[0].notes || '');
+          }
+        }
+      } catch (err: any) {
+        if (isMounted) {
+          showNotification(err.response?.data?.error || 'Failed to fetch DPR leads', 'error');
+          setLeads([]);
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleSelectLead = (lead: LeadRecord) => {
