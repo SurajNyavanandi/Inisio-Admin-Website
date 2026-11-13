@@ -14,7 +14,7 @@ export interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
-  login: (email: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   checkSuperAdminRestriction: (actionDescription?: string) => boolean;
   getAuthHeaders: () => { headers: { Authorization: string } } | {};
@@ -46,18 +46,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearNotification = () => setNotification(null);
 
-  const login = async (email: string) => {
+  const login = async (email: string, password = '') => {
     try {
-      const response = await axios.post('/api/auth/admin-login', { email });
-      const { token: newToken, user: newUser } = response.data;
+      const response = await axios.post('/api/auth/admin-login', { email, password });
+      const resData = response.data?.data || response.data;
+      const { token: newToken, user: newUser } = resData;
       setToken(newToken);
       setUser(newUser);
       localStorage.setItem('inisio_admin_token', newToken);
       localStorage.setItem('inisio_admin_user', JSON.stringify(newUser));
-      showNotification(`Successfully logged in as ${newUser.name} (${newUser.role.toUpperCase()})`, 'success');
+      showNotification(`Successfully logged in as ${newUser.name} (${(newUser.role || 'ADMIN').toUpperCase()})`, 'success');
       return { success: true };
     } catch (err: any) {
-      const errMsg = err.response?.data?.error || 'Authentication failed. Please verify credentials.';
+      const errMsg = err.response?.data?.message || err.response?.data?.error || 'Authentication failed. Please verify credentials.';
       showNotification(errMsg, 'error');
       return { success: false, error: errMsg };
     }
